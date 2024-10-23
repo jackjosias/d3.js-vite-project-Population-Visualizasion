@@ -1,1 +1,114 @@
 
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Graphique de tweets par heure</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+</head>
+  
+<body>
+  
+    <svg width="800" height="300"></svg>
+
+  
+    <script>
+
+      function createBarChart(hours, tweetCounts) {
+    const svg = d3.select('svg');
+    const margin = { top: 20, right: 20, bottom: 60, left: 100 };
+    const width = +svg.attr('width') - margin.left - margin.right;
+    const height = +svg.attr('height') - margin.top - margin.bottom;
+
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleBand()
+        .rangeRound([0, width])
+        .padding(0.1)
+        .domain(hours);
+
+    const y = d3.scaleLinear()
+        .rangeRound([height, 0])
+        .domain([0, d3.max(tweetCounts)]);
+
+    const gX = g.selectAll('.bar')
+        .data(tweetCounts)
+        .enter().append('g')
+        .attr('class', 'bar');
+
+    gX.append('rect')
+        .attr('x', (d, i) => x(i))
+        .attr('y', d => height - y(d))
+        .attr('width', x.bandwidth())
+        .attr('height', d => y(d));
+
+    gX.append('text')
+        .attr('x', (d, i) => x(i) + x.bandwidth() / 2)
+        .attr('y', d => height - y(d) - 10)
+        .attr('text-anchor', 'middle')
+        .attr('fill', 'white')
+        .text(d => d);
+
+    g.append('g')
+        .attr('class', 'axis--x')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x));
+
+    g.append('g')
+        .attr('class', 'axis--y')
+        .call(d3.axisLeft(y));
+}
+
+
+
+
+
+
+      // Fonction pour récupérer les tweets
+async function getTweets(hashtag) {
+    const url = `https://api.twitter.com/2/tweets/search/stream?query=${hashtag}&tweet.fields=text&expansions=author_id`;
+    
+    try {
+        const response = await axios.get(url, {
+            headers: {
+                'Authorization': 'Bearer YOUR_BEARER_TOKEN_HERE'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('Erreur lors de la récupération des tweets:', error.message);
+        return [];
+    }
+}
+
+// Fonction principale
+async function main() {
+    const hashtag = '#COVID19'; // Modifiez ce mot-clé selon vos besoins
+    
+    // Récupération des tweets
+    const tweets = await getTweets(hashtag);
+
+    // Préparation des données
+    const hours = Array.from(new Array(24), (_, i) => i.toString().padStart(2, '0'));
+    const tweetCounts = hours.map(() => 0);
+
+    // Compter les tweets par heure
+    tweets.data.forEach(tweet => {
+        const hour = new Date(tweet.created_at).getHours();
+        if (hour >= 0 && hour <= 23) {
+            tweetCounts[hour]++;
+        }
+    });
+
+    // Créer le graphique
+    createBarChart(hours, tweetCounts);
+}
+
+main();
+
+      
+      
+    </script>
+</body>
+</html>
